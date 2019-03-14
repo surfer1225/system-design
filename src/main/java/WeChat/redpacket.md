@@ -31,6 +31,7 @@ https://blog.csdn.net/u014477164/article/details/76687018
   - every AnBao assigned an ID, basis for all following operations
   - 1 vertical chain contains 1 business server, 1 DB (a set)
   - all sets decoupled from each other -> lower DB load, lower server-side load
+![pic](./set.png)
 2. FIFO Queue to avoid concurrently competing for lock
   - stick same anbao related requests to the same server within one set, based on hashed(anbao ID)
   - queued in-memory, based on anbao ID
