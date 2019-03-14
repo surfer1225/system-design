@@ -42,4 +42,4 @@ Let me know if it is not alright to use the photos
 3. same-machine memcached to prevent too many requests with the same anbao ID
   - memcached to control concurrency, reject directly the request if number of requests exceeds the preset value
   - memcached CAS operations to reduce number of requests entering DB
-4.
+4. Test ssh push
