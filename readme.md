@@ -40,4 +40,4 @@ This repository contains tactics and design thinking when designing a system. Ce
 - Each with specialty, but could inspire a component
 - Go into the subdirectories for more details
 
-![pic](./architecture.pdf)
+![pic](./architecture.png)
