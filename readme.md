@@ -39,3 +39,5 @@ This repository contains tactics and design thinking when designing a system. Ce
 - Reddit, Facebook, Twitter, Google, YouTube, WeChat etc.
 - Each with specialty, but could inspire a component
 - Go into the subdirectories for more details
+
+![pic](./architecture.pdf)
