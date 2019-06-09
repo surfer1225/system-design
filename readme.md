@@ -1,6 +1,13 @@
 ## System Design
 This repository contains tactics and design thinking when designing a system. Certain code/examples are in the subdirectory
 
+#### SNAKE Rule
+- S: Scenario
+- N: Necessary -> requirements/hypothesis
+- A: Application -> service/algorithm
+- K: Kilobit -> Data
+- E: Evolve
+ 
 #### System Design Considerations
 1. Business requirements
 2. high-level components
