@@ -13,7 +13,8 @@
     - check budget requirements for number of servers
     - 2 servers should be sufficient
 - A (Application)
-    [!pic](./architecture.png)
+    <br></br>
+    ![pic](./architecture.png)
     - users -> 1 client serving module to serve all requests (persistent connection)
     - client serving module -> messenger module (persistent connection)
     - messenger module -> recommendation calculator
