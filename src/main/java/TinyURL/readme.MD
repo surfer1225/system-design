@@ -1,4 +1,5 @@
 ## Designing a URL Shortening service like TinyURL
+##### Source(https://www.educative.io/collection/page/5668639101419520/5649050225344512/5668600916475904)
 - Similar services: bit.ly, goo.gl, qlink.me, etc.
 
 #### 1. Why do we need URL shortening?
@@ -179,3 +180,139 @@ Can it overflow? Appending an increasing sequence number will also impact the pe
 Another solution could be to append user id (which should be unique) to the input URL.
 
 ![pic](./flow.png)
+
+##### b. Generating keys offline
+We can have a standalone Key Generation Service (KGS) that generates random six letter strings beforehand
+and stores them in a database (let’s call it key-DB).
+Whenever we want to shorten a URL, we will just take one of the already-generated keys and use it.
+This approach will make things quite simple and fast.
+Not only are we not encoding the URL, but we won’t have to worry about duplications or collisions.
+KGS will make sure all the keys inserted into key-DB are unique
+
+__Can concurrency cause problems?__
+As soon as a key is used, it should be marked in the database to ensure it doesn’t get used again.
+If there are multiple servers reading keys concurrently,
+we might get a scenario where two or more servers try to read the same key from the database.
+How can we solve this concurrency problem?
+
+Servers can use KGS to read/mark keys in the database.
+KGS can use two tables to store keys: one for keys that are not used yet,
+and one for all the used keys. As soon as KGS gives keys to one of the servers,
+it can move them to the used keys table.
+KGS can always keep some keys in memory so that it can quickly provide them whenever a server needs them.
+
+For simplicity, as soon as KGS loads some keys in memory,
+it can move them to the used keys table. This ensures each server gets unique keys.
+If KGS dies before assigning all the loaded keys to some server,
+we will be wasting those keys–which is acceptable, given the huge number of keys we have.
+
+KGS also has to make sure not to give the same key to multiple servers.
+For that, it must synchronize (or get a lock on) the data structure holding the keys
+before removing keys from it and giving them to a server
+
+__What would be the key-DB size?__
+With base64 encoding, we can generate 68.7B unique six letters keys.
+If we need one byte to store one alpha-numeric character, we can store all these keys in:
+
+__6 (characters per key) * 68.7B (unique keys) = 412 GB.__
+
+__Isn’t KGS a single point of failure?__ Yes, it is. To solve this, we can have a standby replica of KGS.
+Whenever the primary server dies, the standby server can take over to generate and provide keys.
+
+__Can each app server cache some keys from key-DB?__ Yes, this can surely speed things up.
+Although in this case, if the application server dies before consuming all the keys,
+we will end up losing those keys. This can be acceptable since we have 68B unique six letter keys.
+
+__How would we perform a key lookup?__
+We can look up the key in our database or key-value store to get the full URL.
+If it’s present, issue an “HTTP 302 Redirect” status back to the browser,
+passing the stored URL in the “Location” field of the request.
+If that key is not present in our system,
+issue an “HTTP 404 Not Found” status or redirect the user back to the homepage.
+
+__Should we impose size limits on custom aliases?__
+Our service supports custom aliases.
+Users can pick any ‘key’ they like, but providing a custom alias is not mandatory.
+However, it is reasonable (and often desirable) to impose a size limit on a custom alias to 
+ensure we have a consistent URL database.
+Let’s assume users can specify a maximum of 16 characters per customer key 
+(as reflected in the above database schema).
+
+![pic](./enhanced_flow.png)
+<br></br>
+<br></br>
+
+##### 7. Data Partitioning and Replication
+- To scale out our DB, we need to partition it so that it can store information about billions of URLs.
+We need to come up with a partitioning scheme that would divide and store our data to different DB servers.
+
+__a. Range Based Partitioning:__
+<br></br>
+We can store URLs in separate partitions based on the first letter of the URL or the hash key. Hence we save all the URLs starting with letter ‘A’ in one partition, save those that start with letter ‘B’ in another partition and so on. This approach is called range-based partitioning. We can even combine certain less frequently occurring letters into one database partition. We should come up with a static partitioning scheme so that we can always store/find a file in a predictable manner.
+
+The main problem with this approach is that it can lead to unbalanced servers. e.g. URLs starting with E
+
+__b. Hash-Based Partitioning:__
+<br></br>
+In this scheme, we take a hash of the object we are storing. We then calculate which partition to use based upon the hash. In our case, we can take the hash of the ‘key’ or the actual URL to determine the partition in which we store the data object.
+
+Our hashing function will randomly distribute URLs into different partitions (e.g., our hashing function can always map any key to a number between [1…256]), and this number would represent the partition in which we store our object.
+
+This approach can still lead to overloaded partitions, which can be solved by using __Consistent Hashing.__
+
+##### 8. Cache
+- We can cache URLs that are frequently accessed. We can use some off-the-shelf solution like Memcache, which can store full URLs with their respective hashes.
+
+__How much cache should we have?__
+We can start with 20% of daily traffic and, based on clients’ usage pattern,
+we can adjust how many cache servers we need.
+As estimated above, we need 170GB memory to cache 20% of daily traffic.
+Since a modern-day server can have 256GB memory, we can easily fit all the cache into one machine.
+Alternatively, we can use a couple of smaller servers to store all these hot URLs.
+
+__Which cache eviction policy would best fit our needs?__
+When the cache is full, and we want to replace a link with a newer/hotter URL, how would we choose?
+Least Recently Used (LRU) can be a reasonable policy for our system.
+Under this policy, we discard the least recently used URL first.
+
+__How can each cache replica be updated?__
+Whenever there is a cache miss, our servers would be hitting a backend database.
+Whenever this happens, we can update the cache and pass the new entry to all the cache replicas. 
+
+<br></br>
+<br></br>
+![pic](./with_cache.png)
+
+##### 9. Load Balancer
+We can add a Load balancing layer at three places in our system:
+
+1. Between Clients and Application servers
+1. Between Application Servers and database servers
+1. Between Application Servers and Cache servers
+
+- Initially, we could use a simple Round Robin approach that distributes incoming requests equally among backend servers. This LB is simple to implement and does not introduce any overhead. Another benefit of this approach is that if a server is dead, LB will take it out of the rotation and will stop sending any traffic to it.
+
+- A problem with Round Robin LB is that server load is not taken into consideration. If a server is overloaded or slow, the LB will not stop sending new requests to that server. To handle this, a more intelligent LB solution can be placed that periodically queries the backend server about its load and adjusts traffic based on that.
+
+##### 10. Purging or DB cleanup
+Should entries stick around forever or should they be purged? If a user-specified expiration time is reached, what should happen to the link?
+
+If we chose to actively search for expired links to remove them, it would put a lot of pressure on our database. Instead, we can slowly remove expired links and do a lazy cleanup. Our service will make sure that only expired links will be deleted, although some expired links can live longer but will never be returned to users.
+
+- Whenever a user tries to access an expired link, we can delete the link and return an error to the user.
+- A separate Cleanup service can run periodically to remove expired links from our storage and cache. This service should be very lightweight and can be scheduled to run only when the user traffic is expected to be low.
+- We can have a default expiration time for each link (e.g., two years).
+- After removing an expired link, we can put the key back in the key-DB to be reused.
+- Should we remove links that haven’t been visited in some length of time, say six months? This could be tricky. Since storage is getting cheap, we can decide to keep links forever.
+
+![pic](./complete.png)
+
+##### 11. Telemetry (Not in MVP)
+How many times a short URL has been used, what were user locations, etc.? How would we store these statistics? If it is part of a DB row that gets updated on each view, what will happen when a popular URL is slammed with a large number of concurrent requests?
+
+Some statistics worth tracking: country of the visitor, date and time of access, web page that refers the click, browser, or platform from where the page was accessed.
+
+##### 12. Security and Permissions
+Can users create private URLs or allow a particular set of users to access a URL?
+
+We can store permission level (public/private) with each URL in the database. We can also create a separate table to store UserIDs that have permission to see a specific URL. If a user does not have permission and tries to access a URL, we can send an error (HTTP 401) back. Given that we are storing our data in a NoSQL wide-column database like Cassandra, the key for the table storing permissions would be the ‘Hash’ (or the KGS generated ‘key’). The columns will store the UserIDs of those users that have permissions to see the URL.
