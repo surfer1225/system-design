@@ -74,7 +74,7 @@ order management, high TPS, review system etc.
 ##### 5.2 Clustering & Load Balancing
 - LB for distributed services HA, master-slave DB for database HA
 <br></br>
-![pic](./architecture.PNG)
+![pic](./architecture.png)
 
 ##### 5.3 Multi-Layer Caching
 - local cache (first level) & distributed cache (second level)
@@ -90,7 +90,7 @@ order management, high TPS, review system etc.
 1. Redis persistence can help even session server down
 1. expiration time can be configured
 <br></br>
-![pic](./session.PNG)
+![pic](./session.png)
 
 ##### 5.5 DB Clustering
 - read-write separation: Master-Slave pattern
@@ -100,12 +100,12 @@ order management, high TPS, review system etc.
 1. if too much data, divide into smaller tables
 1. read-write separation after all the above steps
 <br></br>
-![pic](./db.PNG)
+![pic](./db.png)
 
 ##### 5.6 Everything as a Service
 - extract certain modules/functions as common services
 <br></br>
-![pic](./service.PNG)
+![pic](./service.png)
 
 ##### 5.7 Message Queue
 - module decouple, async, HA
@@ -114,8 +114,8 @@ order management, high TPS, review system etc.
 1. inventory: read and deduct inventory count
 1. delivery: read and deliver
 <br></br>
-![pic](./mq.PNG)
+![pic](./mq.png)
 
 ### 6. Overall
 <br></br>
-![pic](./overall.PNG)
+![pic](./overall.png)
