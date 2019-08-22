@@ -22,7 +22,9 @@
  - unable to deal with all-or-nothing fill type
 - illustrated below:
 <p></p>
-- ![pic](./state_flow.PNG)
+
+![pic](./state_flow.PNG)
+
 #### 4. Multi-instance Consistency (The most difficult part)
 - Every instance process the same incoming aggress order, only the master node's result gets processed further
 - order matching engine considered as a deterministic pure function, same input always lead to the same output
